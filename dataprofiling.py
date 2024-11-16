@@ -19,11 +19,15 @@ if uploaded_file is not None:
         st.write(df.head())
         
         # Generate profile report with minimal configuration
-        st.subheader("Generating Profile Report...")
-        profile = ProfileReport(df, minimal=True)
-        
-        # Display the report
-        st_profile_report(profile)
+        with st.spinner("Generating Profile Report..."):
+            profile = ProfileReport(df, 
+                                 minimal=True,
+                                 explorative=True,
+                                 dark_mode=True)
+            
+            # Display the report
+            st_profile_report(profile)
         
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+        st.exception(e)
