@@ -1,6 +1,0 @@
-streamlit==1.31.0
-pandas==2.2.0
-numpy==1.26.4
-pydantic<2.0.0
-ydata-profiling==4.5.1
-streamlit-pandas-profiling==0.1.3
