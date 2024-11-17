@@ -8,6 +8,10 @@ import plotly.express as px
 import plotly.figure_factory as ff
 import io
 import json
+# Add these new imports at the top of your app.py
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
 
 app = Flask(__name__)
 
@@ -108,7 +112,70 @@ def upload_file():
         return 'Invalid file format. Please upload a CSV file.'
     
     return render_template('upload.html')
-
+# Add this new route to your Flask application
+@app.route('/update_plot', methods=['POST'])
+def update_plot():
+    data = request.json
+    plot_type = data.get('plot_type')
+    x_column = data.get('x_column')
+    y_column = data.get('y_column')
+    
+    # Read the stored CSV file
+    df = pd.read_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'))
+    
+    fig = go.Figure()
+    
+    if plot_type == 'scatter':
+        fig.add_trace(
+            go.Scatter(
+                x=df[x_column],
+                y=df[y_column],
+                mode='markers',
+                name='scatter'
+            )
+        )
+        fig.update_layout(
+            title=f'Scatter Plot: {x_column} vs {y_column}',
+            xaxis_title=x_column,
+            yaxis_title=y_column
+        )
+    
+    elif plot_type == 'line':
+        fig.add_trace(
+            go.Scatter(
+                x=df[x_column],
+                y=df[y_column],
+                mode='lines',
+                name='line'
+            )
+        )
+        fig.update_layout(
+            title=f'Line Plot: {x_column} vs {y_column}',
+            xaxis_title=x_column,
+            yaxis_title=y_column
+        )
+    
+    elif plot_type == 'histogram':
+        fig.add_trace(
+            go.Histogram(
+                x=df[x_column],
+                name='histogram'
+            )
+        )
+        fig.update_layout(
+            title=f'Histogram of {x_column}',
+            xaxis_title=x_column,
+            yaxis_title='Count'
+        )
+    
+    # Update general layout
+    fig.update_layout(
+        plot_bgcolor='white',
+        height=500,
+        margin=dict(l=50, r=50, t=50, b=50)
+    )
+    
+    return jsonify({'plot': fig.to_json()})
 @app.route('/process', methods=['POST'])
 def process():
     operations = request.json.get('operations', [])
@@ -132,7 +199,18 @@ def process():
         'transformed_columns': transformed_cols,
         'preview': processed_df.head().to_html(classes='table table-striped')
     })
-
+@app.route('/column_stats/<column_name>')
+def column_stats(column_name):
+    df = pd.read_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'))
+    
+    if column_name not in df.columns:
+        return jsonify({'error': 'Column not found'}), 404
+    
+    return jsonify({
+        'data_type': str(df[column_name].dtype),
+        'missing_values': str(df[column_name].isnull().sum()),
+        'unique_values': f"{df[column_name].nunique()} unique values"
+    })
 @app.route('/download/<file_type>')
 def download(file_type):
     if file_type == 'original':
