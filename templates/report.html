@@ -1,14 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Profile Report</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --bs-body-bg: #1a1d20;
+            --bs-body-color: #e9ecef;
+            --bs-card-bg: #212529;
+            --bs-card-border-color: #2c3136;
+        }
+
+        body {
+            background-color: var(--bs-body-bg);
+            color: var(--bs-body-color);
+        }
+
+        .card {
+            background-color: var(--bs-card-bg);
+            border-color: var(--bs-card-border-color);
+        }
+
+        .plot-container {
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .form-select {
+            background-color: #343a40;
+            color: var(--bs-body-color);
+            border-color: #454d55;
+        }
+
+        .form-select:focus {
+            background-color: #343a40;
+            color: var(--bs-body-color);
+        }
+
+        .btn-theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
 </head>
 <body>
+    <!-- Theme Toggle Button -->
+    <button class="btn btn-outline-light btn-theme-toggle" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span>
+    </button>
+
     <div class="container mt-5">
         <h1 class="mb-4">Data Profile Report</h1>
 
@@ -23,6 +68,44 @@
             </div>
         </div>
 
+        <!-- Interactive Plots -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Interactive Plots</h5>
+            </div>
+            <div class="card-body">
+                <div class="plot-controls">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <select id="plotType" class="form-select mb-2">
+                                <option value="scatter">Scatter Plot</option>
+                                <option value="line">Line Plot</option>
+                                <option value="histogram">Histogram</option>
+                                <option value="box">Box Plot</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="xAxis" class="form-select mb-2">
+                                <option value="">Select X-Axis</option>
+                                {% for column in numeric_columns %}
+                                <option value="{{ column }}">{{ column }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="yAxis" class="form-select mb-2">
+                                <option value="">Select Y-Axis</option>
+                                {% for column in numeric_columns %}
+                                <option value="{{ column }}">{{ column }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="dynamicPlot" class="plot-container"></div>
+            </div>
+        </div>
+
         <!-- Data Processing Options -->
         <div class="card mb-4">
             <div class="card-header">
@@ -31,20 +114,20 @@
             <div class="card-body">
                 <div class="mb-3">
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="standardization" id="standardization">
+                        <input class="form-check-input" type="checkbox" id="standardization">
                         <label class="form-check-label" for="standardization">
                             Standardization (Z-score normalization)
                         </label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="normalization" id="normalization">
+                        <input class="form-check-input" type="checkbox" id="normalization">
                         <label class="form-check-label" for="normalization">
                             Min-Max Normalization
                         </label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="log_transform" id="log_transform">
-                        <label class="form-check-label" for="log_transform">
+                        <input class="form-check-input" type="checkbox" id="logTransform">
+                        <label class="form-check-label" for="logTransform">
                             Log Transformation
                         </label>
                     </div>
@@ -60,73 +143,44 @@
             </div>
             <div class="card-body">
                 <a href="/download/original" class="btn btn-secondary me-2">Download Original Data</a>
-                <a href="/download/processed" class="btn btn-success" id="downloadProcessed" style="display: none;">Download Processed Data</a>
+                <a href="/download/processed" id="downloadProcessed" class="btn btn-success" style="display: none;">
+                    Download Processed Data
+                </a>
             </div>
         </div>
-
-        <!-- Processed Data Preview -->
-        <div class="card mb-4" id="processedDataCard" style="display: none;">
-            <div class="card-header">
-                <h5 class="mb-0">Processed Data Preview</h5>
-            </div>
-            <div class="card-body">
-                <div id="processedPreview"></div>
-            </div>
-        </div>
-
-        <!-- Distribution Plots -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Distribution Plots</h5>
-            </div>
-            <div class="card-body">
-                {% for col, plot in plots.items() %}
-                <div id="plot_{{ loop.index }}" class="mb-4"></div>
-                <script>
-                    Plotly.newPlot('plot_{{ loop.index }}', {{ plot | safe }});
-                </script>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Correlation Heatmap -->
-        {% if correlation_plot %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Correlation Heatmap</h5>
-            </div>
-            <div class="card-body">
-                <div id="correlation_plot"></div>
-                <script>
-                    Plotly.newPlot('correlation_plot', {{ correlation_plot | safe }});
-                </script>
-            </div>
-        </div>
-        {% endif %}
 
         <!-- Column Information -->
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Column Information</h5>
+                <select id="columnSelector" class="form-select" style="width: auto;">
+                    {% for col in stats['Column Names'] %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
+                <div id="columnDetails" class="table-responsive">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th>Column Name</th>
-                                <th>Data Type</th>
-                                <th>Missing Values</th>
+                                <th>Property</th>
+                                <th>Value</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for col in stats['Column Names'] %}
                             <tr>
-                                <td>{{ col }}</td>
-                                <td>{{ stats['Data Types'][col] }}</td>
-                                <td>{{ stats['Missing Values'][col] }}</td>
+                                <td>Data Type</td>
+                                <td id="dataType"></td>
                             </tr>
-                            {% endfor %}
+                            <tr>
+                                <td>Missing Values</td>
+                                <td id="missingValues"></td>
+                            </tr>
+                            <tr>
+                                <td>Unique Values</td>
+                                <td id="uniqueValues"></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -161,41 +215,78 @@
     </div>
 
     <script>
-        $(document).ready(function() {
-            $('#processData').click(function() {
-                var operations = [];
-                $('input[type="checkbox"]:checked').each(function() {
-                    operations.push($(this).val());
-                });
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            if (html.getAttribute('data-bs-theme') === 'dark') {
+                html.setAttribute('data-bs-theme', 'light');
+                themeIcon.textContent = '☀️';
+                document.documentElement.style.setProperty('--bs-body-bg', '#ffffff');
+                document.documentElement.style.setProperty('--bs-body-color', '#212529');
+                document.documentElement.style.setProperty('--bs-card-bg', '#ffffff');
+            } else {
+                html.setAttribute('data-bs-theme', 'dark');
+                themeIcon.textContent = '🌙';
+                document.documentElement.style.setProperty('--bs-body-bg', '#1a1d20');
+                document.documentElement.style.setProperty('--bs-body-color', '#e9ecef');
+                document.documentElement.style.setProperty('--bs-card-bg', '#212529');
+            }
+        }
 
-                if (operations.length === 0) {
-                    alert('Please select at least one processing option');
-                    return;
-                }
-
-                $.ajax({
-                    url: '/process',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ operations: operations }),
-                    success: function(response) {
-                        $('#processedPreview').html(response.preview);
-                        $('#processedDataCard').show();
-                        $('#downloadProcessed').show();
-                        
-                        // Display information about transformed columns
-                        let transformInfo = '';
-                        for (let [operation, columns] of Object.entries(response.transformed_columns)) {
-                            transformInfo += `<p><strong>${operation}:</strong> ${columns.join(', ')}</p>`;
-                        }
-                        $('#processedPreview').prepend(`<div class="alert alert-info">${transformInfo}</div>`);
-                    },
-                    error: function() {
-                        alert('Error processing data');
-                    }
-                });
-            });
+        // Column information handling
+        document.getElementById('columnSelector').addEventListener('change', function(e) {
+            const selectedColumn = e.target.value;
+            fetch(`/column_stats/${selectedColumn}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('dataType').textContent = data.data_type;
+                    document.getElementById('missingValues').textContent = data.missing_values;
+                    document.getElementById('uniqueValues').textContent = data.unique_values;
+                })
+                .catch(error => console.error('Error:', error));
         });
+
+        // Plot handling
+        const plotType = document.getElementById('plotType');
+        const xAxis = document.getElementById('xAxis');
+        const yAxis = document.getElementById('yAxis');
+
+        function updatePlot() {
+            const selectedPlotType = plotType.value;
+            const selectedX = xAxis.value;
+            const selectedY = yAxis.value;
+
+            if (!selectedX || (selectedPlotType !== 'histogram' && selectedPlotType !== 'box' && !selectedY)) {
+                return;
+            }
+
+            fetch('/update_plot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    plot_type: selectedPlotType,
+                    x_column: selectedX,
+                    y_column: selectedY
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                Plotly.newPlot('dynamicPlot', JSON.parse(data.plot));
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Event listeners
+        plotType.addEventListener('change', updatePlot);
+        xAxis.addEventListener('change', updatePlot);
+        yAxis.addEventListener('change', updatePlot);
+
+        // Initialize first column info
+        document.getElementById('columnSelector').dispatchEvent(new Event('change'));
     </script>
 </body>
 </html>
