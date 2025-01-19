@@ -8,14 +8,12 @@ import plotly.express as px
 import plotly.figure_factory as ff
 import io
 import json
-# Add these new imports at the top of your app.py
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
 app = Flask(__name__)
 
-# Ensure the uploads directory exists
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -72,13 +70,8 @@ def upload_file():
             return 'No file selected'
         
         if file and file.filename.endswith('.csv'):
-            # Read the CSV file
-            df = pd.read_csv(file)
-            
-            # Store the DataFrame in session
+            df = pd.read_csv(file)            
             df.to_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'), index=False)
-            
-            # Generate basic statistics
             stats = {
                 'Total Rows': len(df),
                 'Total Columns': len(df.columns),
@@ -86,19 +79,12 @@ def upload_file():
                 'Missing Values': df.isnull().sum().to_dict(),
                 'Data Types': df.dtypes.astype(str).to_dict()
             }
-            
-            # Generate summary statistics for numeric columns
             numeric_stats = df.describe().to_html(classes='table table-striped')
-            
-            # Create visualizations
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             plots = {}
-            for col in numeric_cols[:5]:  # Limit to first 5 numeric columns
+            for col in numeric_cols[:5]:  
                 plots[col] = create_distribution_plot(df, col)
-            
             correlation_plot = create_correlation_heatmap(df)
-            
-            # Sample data preview
             preview = df.head().to_html(classes='table table-striped')
             
             return render_template('report.html', 
@@ -112,17 +98,13 @@ def upload_file():
         return 'Invalid file format. Please upload a CSV file.'
     
     return render_template('upload.html')
-# Add this new route to your Flask application
 @app.route('/update_plot', methods=['POST'])
 def update_plot():
     data = request.json
     plot_type = data.get('plot_type')
     x_column = data.get('x_column')
-    y_column = data.get('y_column')
-    
-    # Read the stored CSV file
+    y_column = data.get('y_column')    
     df = pd.read_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'))
-    
     fig = go.Figure()
     
     if plot_type == 'scatter':
@@ -168,7 +150,6 @@ def update_plot():
             yaxis_title='Count'
         )
     
-    # Update general layout
     fig.update_layout(
         plot_bgcolor='white',
         height=500,
@@ -180,18 +161,12 @@ def update_plot():
 def process():
     operations = request.json.get('operations', [])
     
-    # Read the stored CSV file
-    df = pd.read_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'))
-    
-    # Process the data
+    df = pd.read_csv(os.path.join(UPLOAD_FOLDER, 'temp.csv'))    
     processed_df, transformed_cols = process_data(df, operations)
     
-    # Save processed data
     output = io.BytesIO()
     processed_df.to_csv(output, index=False)
-    output.seek(0)
-    
-    # Save the processed file
+    output.seek(0)    
     processed_df.to_csv(os.path.join(UPLOAD_FOLDER, 'processed.csv'), index=False)
     
     return jsonify({
