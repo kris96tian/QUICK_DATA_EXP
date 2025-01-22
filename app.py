@@ -640,5 +640,10 @@ def render_export():
         except Exception as e:
             st.error(f"Model export failed: {str(e)}")
 
+st.markdown("""
+        ---
+        **Created by Kristian Alikaj**  
+        For more, visit [My GitHub](https://github.com/kris96tian) or [My Portfolio Website](https://kris96tian.github.io/)
+""")
 if __name__ == "__main__":
     main()
